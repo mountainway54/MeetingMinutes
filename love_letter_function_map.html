@@ -1,0 +1,241 @@
+
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: var(--font-sans); }
+.wrap { padding: 1.5rem 0 2rem; }
+.map-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.module {
+  border-radius: var(--border-radius-lg);
+  border: 1px solid var(--color-border-tertiary);
+  overflow: hidden;
+  background: var(--color-background-secondary);
+}
+.mod-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 11px 14px;
+  cursor: pointer;
+  user-select: none;
+  border-bottom: 1px solid transparent;
+  transition: border-color 0.2s;
+}
+.mod-header:hover { background: var(--color-background-tertiary); }
+.module.open .mod-header { border-color: var(--color-border-tertiary); }
+.mod-label { display: flex; align-items: center; gap: 8px; }
+.mod-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.mod-name { font-size: 13px; font-weight: 500; color: var(--color-text-primary); }
+.mod-count { font-size: 11px; color: var(--color-text-tertiary); }
+.chevron { font-size: 14px; color: var(--color-text-tertiary); transition: transform 0.2s; }
+.module.open .chevron { transform: rotate(180deg); }
+.fn-list {
+  display: none;
+  padding: 8px 10px 10px;
+  gap: 4px;
+  flex-direction: column;
+}
+.module.open .fn-list { display: flex; }
+.fn-item {
+  display: flex; align-items: flex-start; gap: 8px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--color-border-tertiary);
+  background: var(--color-background-primary);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.fn-item:hover { background: var(--color-background-tertiary); }
+.fn-name { font-size: 12px; font-weight: 500; color: var(--color-text-primary); font-family: var(--font-mono); }
+.fn-desc { font-size: 11px; color: var(--color-text-secondary); margin-top: 1px; }
+.fn-badge {
+  font-size: 10px; padding: 1px 6px; border-radius: 10px;
+  border: 1px solid; flex-shrink: 0; margin-top: 1px;
+  white-space: nowrap;
+}
+.badge-core  { color: #3C3489; border-color: #AFA9EC; background: #EEEDFE; }
+.badge-rule  { color: #712B13; border-color: #F0997B; background: #FAECE7; }
+.badge-ui    { color: #0C447C; border-color: #85B7EB; background: #E6F1FB; }
+.badge-flow  { color: #085041; border-color: #5DCAA5; background: #E1F5EE; }
+.badge-vis   { color: #633806; border-color: #EF9F27; background: #FAEEDA; }
+.badge-page  { color: #72243E; border-color: #ED93B1; background: #FBEAF0; }
+@media (prefers-color-scheme: dark) {
+  .badge-core  { color: #CECBF6; border-color: #534AB7; background: #26215C; }
+  .badge-rule  { color: #F5C4B3; border-color: #993C1D; background: #4A1B0C; }
+  .badge-ui    { color: #B5D4F4; border-color: #185FA5; background: #042C53; }
+  .badge-flow  { color: #9FE1CB; border-color: #0F6E56; background: #04342C; }
+  .badge-vis   { color: #FAC775; border-color: #854F0B; background: #412402; }
+  .badge-page  { color: #F4C0D1; border-color: #993556; background: #4B1528; }
+}
+.dep-section { margin-top: 16px; }
+.dep-title { font-size: 11px; color: var(--color-text-tertiary); margin-bottom: 8px; letter-spacing: 0.06em; text-transform: uppercase; }
+.dep-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.dep-tag {
+  font-size: 11px; padding: 2px 8px; border-radius: 10px;
+  background: var(--color-background-secondary);
+  border: 1px solid var(--color-border-tertiary);
+  color: var(--color-text-secondary);
+}
+@media (max-width: 480px) { .map-grid { grid-template-columns: 1fr; } }
+</style>
+
+<div class="wrap">
+
+<div class="map-grid" id="grid"></div>
+
+<div class="dep-section">
+  <div class="dep-title">模組依賴關係</div>
+  <div class="dep-row">
+    <span class="dep-tag">gameInitializer → gameStore</span>
+    <span class="dep-tag">turnManager → cardEffects</span>
+    <span class="dep-tag">turnManager → winConditionChecker</span>
+    <span class="dep-tag">cardEffects → targetValidator</span>
+    <span class="dep-tag">cardEffects → ruleEngine</span>
+    <span class="dep-tag">GameBoard → gameStore</span>
+    <span class="dep-tag">ActionPanel → turnManager</span>
+    <span class="dep-tag">GameLog → gameStore</span>
+    <span class="dep-tag">ResultModal → winConditionChecker</span>
+    <span class="dep-tag">animations → GameBoard</span>
+  </div>
+</div>
+
+</div>
+
+<script>
+const modules = [
+  {
+    name: "遊戲狀態管理",
+    dot: "#7F77DD",
+    badge: "badge-core",
+    badgeLabel: "core",
+    fns: [
+      { name: "initGame()", desc: "建立初始遊戲狀態，設定玩家與牌組" },
+      { name: "createDeck()", desc: "產生 16 張標準牌組" },
+      { name: "shuffleDeck(deck)", desc: "Fisher-Yates 洗牌" },
+      { name: "dealInitialCards()", desc: "各發一張起始手牌" },
+      { name: "removeHiddenCard()", desc: "移除底牌（隱藏）" },
+      { name: "revealPublicCards()", desc: "翻出公開牌" },
+      { name: "determineFirstPlayer()", desc: "決定先手玩家" },
+      { name: "getGameState()", desc: "取得當前完整遊戲狀態" },
+      { name: "dispatch(action)", desc: "gameReducer 狀態派發" },
+    ]
+  },
+  {
+    name: "回合流程控制",
+    dot: "#7F77DD",
+    badge: "badge-core",
+    badgeLabel: "core",
+    fns: [
+      { name: "startTurn(playerId)", desc: "開始新回合，設定當前玩家" },
+      { name: "drawCard(playerId)", desc: "從牌庫抽一張牌到手牌" },
+      { name: "playCard(cardId, target?)", desc: "出牌並觸發效果流程" },
+      { name: "endTurn()", desc: "結束回合，切換至下一玩家" },
+      { name: "checkTurnValidity(card)", desc: "確認出牌是否合法" },
+      { name: "moveToDiscard(cardId)", desc: "將牌移入棄牌區" },
+      { name: "switchActivePlayer()", desc: "切換當前行動玩家" },
+      { name: "handleDeckEmpty()", desc: "牌庫耗盡時觸發結算" },
+    ]
+  },
+  {
+    name: "卡牌效果與規則",
+    dot: "#D85A30",
+    badge: "badge-rule",
+    badgeLabel: "rule",
+    fns: [
+      { name: "executeGuard(target, guess)", desc: "守衛：猜牌淘汰" },
+      { name: "executePriest(target)", desc: "牧師：查看對手手牌" },
+      { name: "executeBaron(p1, p2)", desc: "男爵：比較點數淘汰" },
+      { name: "executeHandmaid(player)", desc: "侍女：設定保護狀態" },
+      { name: "executePrince(target)", desc: "王子：棄牌並重抽" },
+      { name: "executeKing(p1, p2)", desc: "國王：交換手牌" },
+      { name: "executeCountess()", desc: "伯爵夫人：強制出牌" },
+      { name: "executePrincess(player)", desc: "公主：持牌者立即淘汰" },
+      { name: "validateTarget(card, target)", desc: "驗證目標是否合法" },
+      { name: "enforceCountessRule(hand)", desc: "伯爵夫人強制規則攔截" },
+      { name: "isProtected(player)", desc: "判斷玩家是否有侍女保護" },
+    ]
+  },
+  {
+    name: "勝負判定",
+    dot: "#D85A30",
+    badge: "badge-rule",
+    badgeLabel: "rule",
+    fns: [
+      { name: "eliminatePlayer(player, reason)", desc: "淘汰玩家並記錄原因" },
+      { name: "checkWinByElimination()", desc: "淘汰勝利判定" },
+      { name: "compareHandValues(p1, p2)", desc: "牌庫空時比手牌點數" },
+      { name: "compareDiscardTotal(p1, p2)", desc: "點數同時比棄牌總點" },
+      { name: "declareWinner(player)", desc: "宣告勝者，結束遊戲" },
+      { name: "getEliminationReason()", desc: "取得淘汰原因文字" },
+    ]
+  },
+  {
+    name: "遊戲桌 UI",
+    dot: "#378ADD",
+    badge: "badge-ui",
+    badgeLabel: "ui",
+    fns: [
+      { name: "<GameBoard />", desc: "主要對戰畫面容器" },
+      { name: "<PlayerArea />", desc: "自己的玩家資訊區塊" },
+      { name: "<OpponentArea />", desc: "對手資訊區塊（手牌背面）" },
+      { name: "<Card />", desc: "卡牌元件（正面/背面/選中）" },
+      { name: "<DeckPile />", desc: "牌庫顯示（剩餘張數）" },
+      { name: "<DiscardPile />", desc: "棄牌區堆疊顯示" },
+      { name: "<RemovedCards />", desc: "移除牌區（底牌＋公開牌）" },
+      { name: "<ActionPanel />", desc: "出牌操作與確認按鈕" },
+      { name: "<TargetSelector />", desc: "指定目標玩家選擇 UI" },
+      { name: "<GuessSelector />", desc: "守衛猜牌選擇器" },
+      { name: "<PeekModal />", desc: "牧師查看手牌彈窗" },
+      { name: "<TurnIndicator />", desc: "當前回合玩家提示" },
+    ]
+  },
+  {
+    name: "頁面流程、紀錄與視覺",
+    dot: "#D4537E",
+    badge: "badge-page",
+    badgeLabel: "page",
+    fns: [
+      { name: "<HomePage />", desc: "首頁 / 開始畫面" },
+      { name: "<StartPanel />", desc: "玩家名稱輸入、開始遊戲" },
+      { name: "<GameLog />", desc: "事件紀錄：出牌、效果、淘汰" },
+      { name: "<Toast />", desc: "短暫操作提示通知" },
+      { name: "<ResultModal />", desc: "勝負結果頁（勝者、原因）" },
+      { name: "resetGame()", desc: "再來一局，重置全部狀態" },
+      { name: "logEvent(type, data)", desc: "寫入事件至 gameLog" },
+      { name: "playCardAnimation(card)", desc: "出牌飛出動畫" },
+      { name: "playDrawAnimation()", desc: "抽牌動畫" },
+      { name: "playEliminateAnimation()", desc: "淘汰動畫" },
+      { name: "playWinAnimation()", desc: "勝利慶祝動畫" },
+    ]
+  },
+];
+
+const grid = document.getElementById('grid');
+modules.forEach((mod, i) => {
+  const el = document.createElement('div');
+  el.className = 'module' + (i < 2 ? ' open' : '');
+  el.innerHTML = `
+    <div class="mod-header" onclick="this.parentElement.classList.toggle('open')">
+      <div class="mod-label">
+        <span class="mod-dot" style="background:${mod.dot}"></span>
+        <span class="mod-name">${mod.name}</span>
+        <span class="mod-count">${mod.fns.length} fn</span>
+      </div>
+      <span class="chevron">&#8964;</span>
+    </div>
+    <div class="fn-list">
+      ${mod.fns.map(f => `
+        <div class="fn-item">
+          <div style="flex:1;min-width:0">
+            <div class="fn-name">${f.name}</div>
+            <div class="fn-desc">${f.desc}</div>
+          </div>
+          <span class="fn-badge ${mod.badge}">${mod.badgeLabel}</span>
+        </div>
+      `).join('')}
+    </div>
+  `;
+  grid.appendChild(el);
+});
+</script>
